@@ -8,7 +8,7 @@ description: Connect an RB Digital account, verify a BCL purchase entitlement, a
 1. Call `get_my_access` to trigger the secure Supabase OAuth connection.
 2. Ask the user to sign in with the email used for their RB Digital or BCL purchase.
 3. After authorization, call `get_my_access` again.
-4. If `access_granted` is true, call `generate_storyboard` with the selected workflow and brief, then write the content yourself in ChatGPT using its returned instructions. The tool supplies guidance, not AI-generated content. No RB Digital credits are required.
+4. If `access_granted` is true, call `generate_storyboard` with the selected workflow and brief, then write original content in ChatGPT using its limited public output requirements. The tool never supplies full private skill instructions. No RB Digital credits are required.
 5. If access is not active, direct the user to the RB Digital portal returned by the server. Never claim access is active without the server result.
 
 Do not request passwords, access tokens, Supabase keys, BCL API keys, or webhook secrets in chat.

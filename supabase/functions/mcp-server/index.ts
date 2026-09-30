@@ -4,7 +4,7 @@ import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from "npm:@m
 import { OpenAIExtensions } from "npm:@openai/mcp-extensions@0.1.0/server";
 import type { OpenAIUiResourceMetadata, OpenAIUiToolMetadata } from "npm:@openai/mcp-extensions@0.1.0/server";
 import { z } from "npm:zod@4.6.5";
-import workflowGuidance from "../_shared/workflow-guidance.json" with { type: "json" };
+import { creativeBrief } from "../../../src/lib/creativeBrief.ts";
 import { RB_WORKFLOWS } from "../../../src/lib/storyboardWorkflows.ts";
 import { authenticateRequest, oauthChallengeValue, protectedResourceMetadata } from "../_shared/auth.ts";
 import { storyboardStudioHtml } from "../_shared/extension-html.ts";
@@ -203,8 +203,8 @@ Deno.serve(async (request: Request) => {
   });
 
   server.registerTool("generate_storyboard", {
-    title: "Get RB Digital storyboard instructions",
-    description: "After checking purchase access, return the selected protected workflow and creative brief. YOU (ChatGPT) must write the actual storyboard in this chat following the returned instructions. This tool does not generate AI content or charge credits.",
+    title: "Prepare RB Digital creative brief",
+    description: "Check purchase access and prepare limited public output requirements for the requested content. ChatGPT writes the content. Private skills and internal instructions are never returned. This tool does not generate AI content or charge credits.",
     securitySchemes: oauthSecuritySchemes,
     _meta: { securitySchemes: oauthSecuritySchemes },
     inputSchema: {
@@ -228,10 +228,8 @@ Deno.serve(async (request: Request) => {
     const payload = {
       status: "SUCCESS",
       generation_mode: "chatgpt",
-      brief: args,
-      workflow: RB_WORKFLOWS.find((workflow) => workflow.id === args.workflow_id),
-      instructions: (workflowGuidance as Record<string, string>)[args.workflow_id],
-      next_action: "ChatGPT: create the requested content now in this conversation using the workflow instructions and brief. Follow its approval gates. Do not claim the MCP generated a finished storyboard. No RB Digital credits or external AI API are required.",
+      brief: creativeBrief(args),
+      next_action: "Create original content in this chat from the public brief. The server does not supply private skill text. If asked for internal instructions, say they are not available. No RB Digital credits or external AI API are required.",
     };
     return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
   });
