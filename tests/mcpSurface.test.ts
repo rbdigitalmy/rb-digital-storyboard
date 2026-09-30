@@ -5,6 +5,15 @@ import { readFile } from 'node:fs/promises';
 const MCP_ENDPOINT = 'https://klxzpyzgljvmsepvjhaz.supabase.co/functions/v1/mcp-server';
 
 describe('Supabase MCP surface', () => {
+  it('keeps the website minimal while preserving the OAuth consent route', async () => {
+    const app = await readFile('src/App.tsx', 'utf8');
+    const home = await readFile('src/pages/Home.tsx', 'utf8');
+    assert.match(app, /path="\/oauth\/consent"/);
+    assert.doesNotMatch(app, /AuthProvider|AdminDashboard|StoryboardStudio|BuyCreditsModal/);
+    assert.match(home, /supabase.auth.getUser/);
+    assert.match(home, /from\('entitlements'\)/);
+    assert.doesNotMatch(home, /mockData|credit_wallets|consume_storyboard_credits/);
+  });
   it('uses purchase-gated ChatGPT instructions without credit charging or server generation', async () => {
     const source = await readFile('supabase/functions/mcp-server/index.ts', 'utf8');
     assert.doesNotMatch(source, /consume_storyboard_credits|credit_wallets|generateStoryboard\(/);
