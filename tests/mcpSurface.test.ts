@@ -13,7 +13,8 @@ describe('Supabase MCP surface', () => {
     assert.match(home, /supabase.auth.getUser/);
     assert.match(home, /from\('entitlements'\)/);
     assert.match(home, /account\?\.active && <section/);
-    assert.match(home, /shouldCreateUser: false/);
+    assert.match(home, /shouldCreateUser: true/);
+    assert.match(home, /review_access_request/);
     assert.match(home, /navigator.clipboard.writeText\(mcpUrl\)/);
     assert.doesNotMatch(home, /mockData|credit_wallets|consume_storyboard_credits/);
   });
