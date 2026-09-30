@@ -14,6 +14,8 @@ export const OAuthConsent: React.FC = () => {
   const authorizationId = useMemo(() => new URLSearchParams(window.location.search).get('authorization_id') || '', []);
   const [details, setDetails] = useState<AuthorizationDetails | null>(null);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
 
@@ -43,14 +45,14 @@ export const OAuthConsent: React.FC = () => {
       setLoading(false);
     };
     void load();
-  }, [authorizationId]);
+  }, [authorizationId, revision]);
 
   const sendMagicLink = async () => {
     setLoading(true);
-    const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
-    const returnUrl = `${window.location.origin}${basePath}/oauth/consent?authorization_id=${encodeURIComponent(authorizationId)}`;
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: returnUrl } });
-    setMessage(error ? error.message : 'Check your email for the secure sign-in link, then return here.');
+    const { error } = await supabase.auth.signInWithPassword({ email:email.trim().toLowerCase(), password });
+    setPassword('');
+    setMessage(error ? 'Emel atau password tidak betul. Daftar melalui portal jika belum ada akaun.' : '');
+    if (!error) setRevision(v=>v+1);
     setLoading(false);
   };
 
@@ -81,11 +83,12 @@ export const OAuthConsent: React.FC = () => {
 
         {loading && <p className="text-sm text-slate-500">Loading secure authorization…</p>}
 
-        {!loading && !details && !message && (
+        {!loading && !details && authorizationId && (
           <div className="space-y-3">
             <label className="text-xs font-semibold text-slate-700">Your RB Digital email</label>
             <input className="input-apple w-full" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-            <button className="btn-primary w-full" onClick={sendMagicLink} disabled={!email}>Send secure sign-in link</button>
+            <label className="text-xs font-semibold text-slate-700">Password</label><input className="w-full border rounded-xl p-3" type="password" autoComplete="current-password" value={password} onChange={event=>setPassword(event.target.value)} />
+            <button className="btn-primary w-full" onClick={sendMagicLink} disabled={!email || !password}>Sign in</button>
           </div>
         )}
 

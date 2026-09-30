@@ -8,6 +8,9 @@ export function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [register, setRegister] = useState(false);
+  const [tab, setTab] = useState('Overview');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -50,12 +53,16 @@ export function Home() {
   async function login(event: React.FormEvent) {
     event.preventDefault();
     setSending(true); setMessage('');
-    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: {
-      shouldCreateUser: true,
-      emailRedirectTo: `${window.location.origin}${base}/oauth/consent?portal=1`,
-    } });
-    setMessage(error ? 'Tidak dapat hantar pautan login. Cuba semula nanti.' : 'Semak inbox emel dan klik pautan login. Selepas login, mohon kelulusan admin.');
+    const credentials = {email:email.trim().toLowerCase(),password};
+    const result = register ? await supabase.auth.signUp(credentials) : await supabase.auth.signInWithPassword(credentials);
+    setPassword('');
+    if (result.error) setMessage(result.error.code === 'email_not_confirmed' ? 'Akaun belum disahkan. Hubungi admin.' : register ? `Pendaftaran gagal: ${result.error.message}` : 'Emel atau password tidak betul.');
+    else if (!result.data.session) setMessage('Akaun didaftarkan, tetapi pengesahan emel masih diwajibkan oleh Supabase. Hubungi admin untuk mengaktifkan akaun.');
+    else {
+      const {error: requestError} = await supabase.from('access_requests').insert({user_id:result.data.user!.id});
+      if (requestError && requestError.code !== '23505') setMessage('Login berjaya. Tekan Mohon akses untuk cuba semula.');
+      setRevision(v=>v+1);
+    }
     setSending(false);
   }
   async function requestAccess() {
@@ -72,13 +79,16 @@ export function Home() {
     setMessage(error ? 'Kelulusan gagal. Cuba semula.' : approved ? 'Akses diluluskan.' : 'Akses ditolak / dibatalkan.');
     setSending(false); setRevision((v)=>v+1);
   }
-  return <div className="portal max-w-4xl mx-auto px-6 py-16 sm:py-24">
+  const dashboard = Boolean(account && (account.active || isAdmin));
+  return <div className={`portal ${dashboard ? 'dashboard-shell' : 'max-w-xl mx-auto px-6 py-16 sm:py-24'}`}>
+    {dashboard && <aside className="dashboard-sidebar"><strong>Storyboard</strong><p className="text-xs text-slate-400 mt-2 break-all">{account?.email}</p><nav aria-label="Dashboard" className="mt-8 space-y-2">{['Overview','Learning','Access',...(isAdmin ? ['Admin'] : [])].map(item=><button key={item} onClick={()=>setTab(item)} aria-current={tab===item ? 'page' : undefined} className={`block w-full text-left rounded-xl px-4 py-3 text-sm ${tab===item ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>{item}</button>)}</nav><button className="text-xs text-slate-400 mt-8" onClick={()=>void supabase.auth.signOut()}>Log keluar</button></aside>}
+    <div className={dashboard ? 'dashboard-content' : ''}>
     <p className="text-xs font-semibold uppercase tracking-[.2em] text-red-600">GPT Storyboard</p>
-    <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-tight mt-5">Idea kau.<br />Storyboard dalam ChatGPT.</h1>
+    <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-tight mt-5">{dashboard ? tab : 'Selamat datang.'}</h1>
     <p className="text-slate-500 leading-relaxed mt-6 max-w-lg">Workflow kreatif RB Digital untuk video pendek, visual produk dan kempen. Sambung sekali, kemudian terus berkarya dalam chat.</p>
-    <p className="text-sm text-slate-600 mt-8">Login portal dengan emel pembelian untuk mendapatkan URL MCP.</p>
+    {!dashboard && <p className="text-sm text-slate-600 mt-8">Sign in dengan emel pembelian dan password. Kali pertama? Daftar akaun untuk kelulusan admin.</p>}
     <p className="text-xs text-slate-400 mt-3">Kelulusan admin diperlukan. Tiada kredit atau top-up.</p>
-    <section className="mt-14 border-t border-slate-200 pt-7" aria-label="Status akaun">
+    {(!dashboard || tab==='Overview') && <section className="mt-14 border-t border-slate-200 pt-7" aria-label="Status akaun">
       <h2 className="text-sm font-semibold">Akses akaun</h2>
       {loading ? <p className="text-sm text-slate-500 mt-3">Menyemak sesi…</p> : error ? <p role="alert" className="text-sm text-amber-700 mt-3">{error}</p> : account ? <div className="mt-3">
         <p className="text-sm text-slate-600">{account.email}</p>
@@ -89,11 +99,14 @@ export function Home() {
       </div> : <form onSubmit={login} className="mt-4 max-w-md space-y-3">
         <label htmlFor="purchase-email" className="block text-sm text-slate-600">Emel pembelian</label>
         <input id="purchase-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nama@emel.com" className="w-full border border-slate-200 rounded-lg px-3 py-3 text-sm" />
-        <button disabled={sending} className="bg-slate-900 text-white rounded-lg px-5 py-3 text-sm disabled:opacity-50">{sending ? 'Menghantar…' : 'Hantar pautan login'}</button>
+        <label htmlFor="password" className="block text-sm text-slate-600">Password</label><input id="password" type="password" required minLength={register ? 10 : 1} autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={e=>setPassword(e.target.value)} className="w-full border border-slate-200 px-3 py-3 text-sm" />
+        <button disabled={sending} className="bg-blue-600 text-white rounded-full px-5 py-3 text-sm disabled:opacity-50">{sending ? 'Sila tunggu…' : register ? 'Daftar & mohon akses' : 'Sign in'}</button>
+        <button type="button" className="block text-sm text-blue-600" onClick={()=>{setRegister(!register);setMessage('');}}>{register ? 'Sudah ada akaun? Sign in' : 'Kali pertama? Daftar akaun'}</button>
       </form>}
       {message && <p role="status" className="text-sm text-slate-500 mt-3">{message}</p>}
-    </section>
-    {isAdmin && <section className="admin-panel mt-10" aria-label="Kelulusan admin">
+    </section>}
+    {dashboard && message && <p role="status" className="text-sm mt-4">{message}</p>}
+    {isAdmin && tab==='Admin' && <section className="admin-panel mt-10" aria-label="Kelulusan admin">
       <h2 className="text-xl font-semibold">Kelulusan akses</h2><p className="text-sm text-slate-500 mt-2">Semak emel pembeli, kemudian approve atau tolak akses.</p>
       {requests.length === 0 && <p className="text-sm mt-5 text-slate-400">Belum ada permohonan.</p>}
       {requests.map(request=><div key={request.user_id} className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 py-4 mt-3">
@@ -101,7 +114,7 @@ export function Home() {
         <div className="flex gap-2"><button disabled={sending} onClick={()=>review(request.user_id,true)} className="bg-blue-600 text-white rounded-full px-4 py-2 text-xs">Approve</button><button disabled={sending} onClick={()=>review(request.user_id,false)} className="bg-slate-100 rounded-full px-4 py-2 text-xs">Tolak / batal</button></div>
       </div>)}
     </section>}
-    {account?.active && <section className="mt-10 border-t border-slate-200 pt-7">
+    {account?.active && tab==='Access' && <section className="mt-10 border-t border-slate-200 pt-7">
       <h2 className="text-sm font-semibold">Sambungan MCP</h2>
       <label htmlFor="mcp-url" className="block text-xs text-slate-500 mt-4">Server URL</label>
       <input id="mcp-url" readOnly value={mcpUrl} className="w-full border border-slate-200 rounded-lg px-3 py-3 text-xs mt-2" />
@@ -109,7 +122,7 @@ export function Home() {
       <a href="https://chatgpt.com/plugins" className="text-sm underline text-slate-500 ml-4">Buka Plugins ↗</a>
       <p className="text-xs text-slate-400 mt-4">URL yang sama digunakan semua pembeli. OAuth menyemak emel dan akses pembelian; URL sahaja tidak memberikan akses.</p>
     </section>}
-    <section className="mt-10 border-t border-slate-200 pt-7">
+    {dashboard && (tab==='Access' || tab==='Learning') && <section className="mt-10 border-t border-slate-200 pt-7">
       <h2 className="text-sm font-semibold">Cara guna</h2>
       <ol className="mt-4 space-y-3 text-sm text-slate-500 list-decimal pl-5">
         <li>Login portal dengan emel pembelian dan mohon akses. Tunggu admin approve.</li>
@@ -118,6 +131,7 @@ export function Home() {
         <li>Buka chat baharu, pilih plugin dan minta ChatGPT semak akses serta buat storyboard.</li>
       </ol>
       <p className="text-xs text-slate-400 mt-5">MCP menyemak akses dan menyediakan panduan. ChatGPT menghasilkan kandungan mengikut pelan serta had akaun ChatGPT kau.</p>
-    </section>
+    </section>}
+    </div>
   </div>;
 }
