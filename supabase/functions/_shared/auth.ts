@@ -38,18 +38,23 @@ export async function authenticateRequest(request: Request): Promise<Authenticat
 }
 
 export function oauthChallenge(request: Request): Response {
-  const resource = functionUrl(request);
+  const challenge = oauthChallengeValue(request);
   return Response.json(
     { error: "unauthorized", error_description: "A valid Supabase OAuth access token is required." },
     {
       status: 401,
       headers: {
         ...corsHeaders,
-        "WWW-Authenticate": `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource"`,
+        "WWW-Authenticate": challenge,
         "Cache-Control": "no-store",
       },
     },
   );
+}
+
+export function oauthChallengeValue(request: Request): string {
+  const resource = functionUrl(request);
+  return `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource", error="invalid_token", error_description="Sign in to RB Digital to continue"`;
 }
 
 export function protectedResourceMetadata(request: Request): Response {

@@ -11,7 +11,8 @@ describe('Supabase MCP surface', () => {
     assert.match(config, /\[functions\.mcp-server\][\s\S]*verify_jwt\s*=\s*false/);
     assert.match(source, /protectedResourceMetadata/);
     assert.match(source, /authenticateRequest/);
-    assert.match(source, /oauthChallenge/);
+    assert.match(source, /securitySchemes:\s*oauthSecuritySchemes/);
+    assert.match(source, /mcp\/www_authenticate/);
   });
 
   it('ships the Supabase MCP endpoint in the plugin manifest', async () => {
