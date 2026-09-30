@@ -44,7 +44,7 @@ function applyInitialData(payload: JsonRecord) {
   const settings = (data.settings || {}) as JsonRecord;
   const pill = byId<HTMLSpanElement>("access-pill");
   const allowed = Boolean(access.access_granted);
-  pill.textContent = allowed ? `Active · ${String(access.balance ?? 0)} credits` : "Purchase required";
+  pill.textContent = allowed ? "Purchase verified · ChatGPT" : "Use your purchase email";
   pill.className = `pill ${allowed ? "ok" : "no"}`;
   byId<HTMLButtonElement>("generate").disabled = !allowed;
   if (settings.default_style) selectedStyle = String(settings.default_style);
@@ -86,7 +86,7 @@ byId<HTMLFormElement>("storyboard-form").addEventListener("submit", async (event
   event.preventDefault();
   const button = byId<HTMLButtonElement>("generate");
   button.disabled = true;
-  setStatus("Generating your production storyboard...");
+  setStatus("Checking purchase access and preparing ChatGPT instructions...");
   try {
     const result = await app.callServerTool({
       name: "generate_storyboard",
@@ -101,9 +101,10 @@ byId<HTMLFormElement>("storyboard-form").addEventListener("submit", async (event
       },
     });
     const payload = result as unknown as JsonRecord;
-    if (payload.isError) throw new Error("Generation was rejected. Check your license or credits.");
-    renderStoryboard(payload);
-    setStatus("Storyboard generated successfully.");
+    if (payload.isError) throw new Error("Purchase access was not verified. Sign in with your purchase email.");
+    const guidance = unwrap(payload);
+    await app.sendMessage({ role: "user", content: [{ type: "text", text: `Create my storyboard in this chat using this verified RB Digital workflow and brief:\n${JSON.stringify(guidance)}` }] });
+    setStatus("Instructions sent. ChatGPT will create the storyboard in your chat. No RB Digital credits used.");
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Generation failed.");
   } finally {

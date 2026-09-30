@@ -24,9 +24,9 @@ export function storyboardStudioHtml(requestOrigin: string): string {
       <label>Visual workflow</label><div id="styles" class="styles"></div>
       <div class="row"><div><label for="duration">Duration</label><select id="duration"><option>10s</option><option>20s</option><option>30s</option><option>60s</option></select></div><div><label for="language">Language</label><select id="language"><option>Malay</option><option>English</option></select></div></div>
       <div class="row"><div><label for="ratio">Ratio</label><select id="ratio"><option>9:16</option><option>16:9</option><option>1:1</option></select></div><div><label for="audience">Audience</label><input id="audience" value="General Audience" /></div></div>
-      <button id="generate" class="primary" type="submit">Generate Storyboard</button><div id="status" class="status"></div>
+      <button id="generate" class="primary" type="submit">Create with ChatGPT</button><div id="status" class="status"></div>
     </form>
-    <section id="result" class="card empty"><div><strong>Your storyboard appears here</strong><p>Choose a workflow and generate.</p></div></section>
+    <section id="result" class="card empty"><div><strong>ChatGPT creates your storyboard in chat</strong><p>Sign in with your purchase email. No RB Digital credits or separate AI API required.</p></div></section>
   </div>
 </main>
 <script src="${publicOrigin}/extension/app.js"></script>

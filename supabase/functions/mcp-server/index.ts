@@ -4,7 +4,7 @@ import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from "npm:@m
 import { OpenAIExtensions } from "npm:@openai/mcp-extensions@0.1.0/server";
 import type { OpenAIUiResourceMetadata, OpenAIUiToolMetadata } from "npm:@openai/mcp-extensions@0.1.0/server";
 import { z } from "npm:zod@4.6.5";
-import { generateStoryboard } from "../../../src/lib/storyboardEngine.ts";
+import workflowGuidance from "../_shared/workflow-guidance.json" with { type: "json" };
 import { RB_WORKFLOWS } from "../../../src/lib/storyboardWorkflows.ts";
 import { authenticateRequest, oauthChallengeValue, protectedResourceMetadata } from "../_shared/auth.ts";
 import { storyboardStudioHtml } from "../_shared/extension-html.ts";
@@ -83,29 +83,21 @@ Deno.serve(async (request: Request) => {
   const getAccess = async () => {
     if (!auth) throw new Error("Authentication required.");
     const { user, supabase } = auth;
-    const [{ data: entitlement, error: entitlementError }, { data: wallet, error: walletError }] = await Promise.all([
-      supabase
+    const { data: entitlement, error: entitlementError } = await supabase
         .from("entitlements")
         .select("id,status,plan_id,expires_at")
         .eq("user_id", user.id)
         .eq("product_id", "gpt-storyboard")
         .eq("status", "active")
-        .maybeSingle(),
-      supabase
-        .from("credit_wallets")
-        .select("balance,total_earned,total_spent")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-    ]);
+        .maybeSingle();
     if (entitlementError) throw new Error(entitlementError.message);
-    if (walletError) throw new Error(walletError.message);
     const notExpired = !entitlement?.expires_at || new Date(entitlement.expires_at) > new Date();
     return {
       authenticated_user: user.email || user.id,
       access_granted: Boolean(entitlement && notExpired),
       entitlement: entitlement || null,
-      balance: wallet?.balance || 0,
-      wallet: wallet || { balance: 0, total_earned: 0, total_spent: 0 },
+      generation_mode: "chatgpt",
+      credits_required: false,
     };
   };
 
@@ -178,13 +170,13 @@ Deno.serve(async (request: Request) => {
     const [access, settings] = await Promise.all([getAccess(), readSettings()]);
     return {
       content: [{ type: "text", text: access.access_granted ? "Storyboard Studio is ready." : "A valid RB Digital purchase is required." }],
-      structuredContent: { access, settings, workflows: RB_WORKFLOWS },
+      structuredContent: { access, settings, workflows: access.access_granted ? RB_WORKFLOWS : [] },
     };
   });
 
   server.registerTool("get_my_access", {
     title: "Check RB Digital access",
-    description: "Return the authenticated user's entitlement and credit balance.",
+    description: "Check purchase access for the OAuth-authenticated email. No RB Digital credits are required; ChatGPT creates the content.",
     securitySchemes: oauthSecuritySchemes,
     _meta: { securitySchemes: oauthSecuritySchemes },
   }, async () => {
@@ -195,14 +187,14 @@ Deno.serve(async (request: Request) => {
 
   server.registerTool("get_my_usage", {
     title: "Get storyboard usage",
-    description: "Return recent MCP usage and current credit balance.",
+    description: "Return the authenticated user's purchase access and recent MCP usage. No credits are used.",
     securitySchemes: oauthSecuritySchemes,
     _meta: { securitySchemes: oauthSecuritySchemes },
   }, async () => {
     if (!auth) return authenticationRequiredToolResult(request);
     const { user, supabase } = auth;
     const [{ data: logs, error: logError }, access] = await Promise.all([
-      supabase.from("mcp_usage_logs").select("tool_name,status,credits_charged,error_details,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+      supabase.from("mcp_usage_logs").select("tool_name,status,error_details,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
       getAccess(),
     ]);
     if (logError) throw new Error(logError.message);
@@ -211,8 +203,8 @@ Deno.serve(async (request: Request) => {
   });
 
   server.registerTool("generate_storyboard", {
-    title: "Generate RB Digital storyboard",
-    description: "Generate a production-ready storyboard using one of 19 protected RB Digital workflows.",
+    title: "Get RB Digital storyboard instructions",
+    description: "After checking purchase access, return the selected protected workflow and creative brief. YOU (ChatGPT) must write the actual storyboard in this chat following the returned instructions. This tool does not generate AI content or charge credits.",
     securitySchemes: oauthSecuritySchemes,
     _meta: { securitySchemes: oauthSecuritySchemes },
     inputSchema: {
@@ -227,44 +219,19 @@ Deno.serve(async (request: Request) => {
     },
   }, async (args) => {
     if (!auth) return authenticationRequiredToolResult(request);
-    const { user, supabase } = auth;
+    const access = await getAccess();
+    if (!access.access_granted) return errorToolResult("ACCESS_DENIED", "Sign in with the email used for a verified RB Digital purchase. An active purchase entitlement is required; credits are not required.");
     if (!RB_WORKFLOWS.some((workflow) => workflow.id === args.workflow_id)) {
       return errorToolResult("INVALID_WORKFLOW", "The selected RB Digital workflow does not exist.");
     }
 
-    const requestId = args.request_id || crypto.randomUUID();
-    const creditCost = args.duration === "60s" ? 20 : 10;
-    const { data: charge, error: chargeError } = await supabase.rpc("consume_storyboard_credits", {
-      p_user_id: user.id,
-      p_amount: creditCost,
-      p_tool_name: "generate_storyboard",
-      p_request_id: requestId,
-      p_input_summary: args,
-    });
-    if (chargeError) return errorToolResult("CREDIT_CHECK_FAILED", chargeError.message);
-    if (!charge?.success) {
-      const code = String(charge?.error || "ACCESS_DENIED");
-      const message = code === "INSUFFICIENT_CREDITS"
-        ? "Insufficient credits. Top up through the RB Digital portal."
-        : "An active RB Digital Storyboard entitlement is required.";
-      return errorToolResult(code, message, { portal_url: publicOrigin, ...charge });
-    }
-
-    const storyboard = generateStoryboard({
-      workflowId: args.workflow_id,
-      topic: args.topic,
-      productName: args.product_name,
-      targetAudience: args.target_audience,
-      duration: args.duration,
-      language: args.language,
-      aspectRatio: args.aspect_ratio,
-    });
     const payload = {
       status: "SUCCESS",
-      request_id: requestId,
-      credits_deducted: charge.credits_charged ?? creditCost,
-      remaining_balance: charge.new_balance,
-      storyboard,
+      generation_mode: "chatgpt",
+      brief: args,
+      workflow: RB_WORKFLOWS.find((workflow) => workflow.id === args.workflow_id),
+      instructions: (workflowGuidance as Record<string, string>)[args.workflow_id],
+      next_action: "ChatGPT: create the requested content now in this conversation using the workflow instructions and brief. Follow its approval gates. Do not claim the MCP generated a finished storyboard. No RB Digital credits or external AI API are required.",
     };
     return { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload };
   });
