@@ -17,11 +17,11 @@
 - Removal of all Netlify functions, configuration and dependencies.
 - Public GitHub repository connected and GitHub Pages deployed successfully.
 - Supabase Site URL, OAuth authorization path and GitHub Pages redirect added.
+- Retired Netlify callback removed from the Supabase redirect allowlist.
 
 ## Production verification remaining
 
-1. Remove the retired Netlify callback from the Supabase redirect allowlist.
-2. Run the full OAuth, entitlement and generation flow with a paid test user.
+1. Run the full OAuth, entitlement and generation flow with a paid test user.
 
 ## Verification gates
 
