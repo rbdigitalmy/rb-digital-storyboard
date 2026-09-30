@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rb-digital-storyboard-suite",
+  "version": "0.2.0",
+  "description": "A collection of RB Digital workflows for viral storyboards, product visuals, character sheets, posters, thumbnails, and social video prompts.",
+  "author": {
+    "name": "Najib"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "RB Digital Storyboard Suite",
+        "shortDescription": "19 visual storytelling tools",
+        "longDescription": "Create viral short-form storyboards, production-ready video prompts, product visuals, character sheets, posters, thumbnails, OOTD content, and specialized formats including ASMR, Chibi, POV Hand, Podcast, Stop Motion, Talking Head, and more.",
+        "developerName": "Najib",
+        "category": "Creative",
+        "capabilities": ["Interactive"],
+        "defaultPrompt": [
+          "Create a storyboard for my product or idea.",
+          "Turn my uploaded image into a polished visual.",
+          "Choose the best RB Digital workflow for this project."
+        ]
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md"
+    }
+  }
+}
