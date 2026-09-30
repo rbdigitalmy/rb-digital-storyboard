@@ -11,7 +11,7 @@ export default function App() {
       </div></header>
       <main className="flex-1"><Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/oauth/consent" element={<OAuthConsent />} />
+        <Route path="/oauth/consent" element={new URLSearchParams(window.location.search).get('portal') === '1' ? <Home /> : <OAuthConsent />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes></main>
       <footer className="max-w-3xl w-full mx-auto px-6 py-6 text-xs text-slate-400 border-t border-slate-100">RB Digital · Akses pembelian melalui OAuth · Kandungan dalam ChatGPT</footer>
