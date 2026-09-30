@@ -15,16 +15,13 @@
 - GitHub Pages Vite base, SPA fallback and deployment workflow.
 - Portable plugin package v0.2.0 pointing directly to the Supabase MCP URL.
 - Removal of all Netlify functions, configuration and dependencies.
+- Public GitHub repository connected and GitHub Pages deployed successfully.
+- Supabase Site URL, OAuth authorization path and GitHub Pages redirect added.
 
-## Activation remaining
+## Production verification remaining
 
-1. Make the GitHub repository public or upgrade the GitHub plan; private Pages
-   is currently unavailable for this repository.
-2. Push this project to `rbdigitalmy/rb-digital-storyboard` and enable Pages
-   with GitHub Actions.
-3. Change the Supabase OAuth Site URL, Authorization path and Redirect URL to
-   the GitHub Pages values in `DEPLOYMENT.md`.
-4. Run the full OAuth, entitlement and generation flow with a paid test user.
+1. Remove the retired Netlify callback from the Supabase redirect allowlist.
+2. Run the full OAuth, entitlement and generation flow with a paid test user.
 
 ## Verification gates
 

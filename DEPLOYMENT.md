@@ -40,7 +40,7 @@ Deploy MCP:
 supabase functions deploy mcp-server --project-ref klxzpyzgljvmsepvjhaz --no-verify-jwt
 ```
 
-After GitHub Pages is live, configure Supabase Auth OAuth Server:
+Supabase Auth OAuth Server production configuration:
 
 ```text
 Site URL: https://rbdigitalmy.github.io/rb-digital-storyboard/
